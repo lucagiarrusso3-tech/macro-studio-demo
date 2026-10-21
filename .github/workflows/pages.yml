@@ -1,0 +1,64 @@
+name: Pubblica Macro Studio su GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Leggi i sorgenti
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Prepara solo i file pubblici dell'app
+        run: |
+          python3 - <<'PYTHON'
+          import json, os, re, shutil
+          from pathlib import Path
+          root = Path.cwd()
+          assets = json.loads(re.search(r'^const ASSETS = (\[.*\]);$', (root / 'sw.js').read_text(), re.M)[1])
+          files = assets + ['sw.js', 'pdf-lib-LICENSE.md', 'pdf-fonts/LICENSE.txt', '.nojekyll']
+          target = Path(os.environ['RUNNER_TEMP']) / 'macro-studio-site'
+          for name in files:
+              source = root / name
+              assert source.is_file() and not source.is_symlink() and source.resolve().is_relative_to(root)
+              assert name == '.nojekyll' or not any(p.startswith('.') for p in Path(name).parts)
+              destination = target / name
+              destination.parent.mkdir(parents=True, exist_ok=True)
+              shutil.copyfile(source, destination)
+          print('File pubblici preparati:', len(files))
+          PYTHON
+      - name: Configura Pages
+        uses: actions/configure-pages@v5
+      - name: Carica il sito statico
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ runner.temp }}/macro-studio-site
+      - name: Pubblica il sito HTTPS
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Prepara Chromium per la verifica anonima
+        run: |
+          python3 -m pip install playwright==1.62.0
+          python3 -m playwright install --with-deps chromium
+      - name: Verifica HTTPS senza account e funzioni principali
+        env:
+          PUBLIC_SITE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: python3 .github/check-public-site.py --url "$PUBLIC_SITE_URL"

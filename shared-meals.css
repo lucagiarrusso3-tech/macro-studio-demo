@@ -1,0 +1,41 @@
+.shared-meals {margin:20px 0;padding:20px;grid-column:1/-1}
+.shared-meals h2,.shared-meals h3 {margin-top:18px}
+.shared-controls,.shared-fields,.shared-food-row {display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin:12px 0}
+.shared-fields>label {flex:1 1 160px}.shared-meals input:not([type=checkbox]),.shared-meals select,.shared-meals textarea {display:block;width:100%;box-sizing:border-box;padding:9px;border:1px solid #cbc7bd;border-radius:6px;background:white;color:#292925;font:inherit}
+.shared-meals button {padding:9px 13px;margin:5px 0;border:1px solid #cbc7bd;border-radius:6px;background:#f3f0e9;color:#292925;cursor:pointer}
+.shared-alternative,#sharedWeekReport article {border:1px solid #d9d5cc;border-radius:8px;padding:14px;margin:12px 0;background:white}
+.shared-food-row>span {flex:1 1 180px}.shared-food-row input {max-width:130px}.shared-disabled {background:#f0f0ee;padding:12px}.shared-disabled>p {font-weight:600}
+#sharedSaveStatus {font-weight:600}#sharedWeekReport {display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}#sharedWeekReport ul {padding-left:18px;overflow-wrap:anywhere}
+@media print {.shared-meals details,.shared-meals button,.shared-controls,.shared-fields,#sharedSaveStatus,#sharedImport,.shared-alternative input,.shared-alternative textarea,.shared-food-row label {display:none!important}.shared-meals {break-before:page}.shared-alternative{break-inside:avoid}}
+
+/* Keep the modern page's palette and original three-vessel layout. */
+body.shared-meals-mode:has(#tanks) .shared-meals button {background:#f9eff4;border-color:var(--border);color:#482d3a;border-radius:12px}
+body.shared-meals-mode:has(#tanks) .shared-meals input:not([type=checkbox]),body.shared-meals-mode:has(#tanks) .shared-meals select,body.shared-meals-mode:has(#tanks) .shared-meals textarea {border-color:var(--border);color:#482d3a;border-radius:10px}
+body.shared-meals-mode:has(#tanks) .shared-alternative,body.shared-meals-mode:has(#tanks) #sharedWeekReport article {border-color:var(--border);border-radius:16px}
+body.shared-meals-mode:has(#tanks) .shared-disabled {background:#fff0f6;border-radius:16px}
+.shared-meals-mode #tanks .scenario-maximum {opacity:.25}
+.shared-meals-mode #tanks .scenario-minimum {opacity:.7}
+.shared-meals-mode #tanks .pct {font-size:15px;overflow-wrap:anywhere;padding:3px}
+.shared-meals-mode #tanks strong {font-size:20px;overflow-wrap:anywhere}
+.shared-meals-mode #tanks p {overflow-wrap:anywhere}
+@media(max-width:480px){.shared-meals-mode #tanks .tankcard{padding:12px 5px}.shared-meals-mode #tanks strong{font-size:17px}.shared-meals-mode #tanks .pct{font-size:13px}}
+body.shared-meals-mode:has(#tanks) .shared-controls label {display:inline-flex;align-items:center;gap:8px}
+body.shared-meals-mode:has(#tanks) .shared-controls input[type=checkbox] {width:auto;margin:0;accent-color:var(--accent)}
+
+/* Selection identifies the editing destination, never an extra meal to sum. */
+.shared-alternative {cursor:pointer}
+.shared-alternative.is-selected {border:2px solid #a63869;box-shadow:inset 4px 0 #a63869}
+body.shared-meals-mode:has(#tanks) .shared-alternative.is-selected {border-color:var(--accent,#a63869)}
+.shared-alternative:focus-visible {outline:3px solid #ac6d9b;outline-offset:3px}
+.shared-selection-label {min-height:1.3em;margin:0;font-weight:700;color:#843451}
+#sharedSelectedAlternative {font-weight:700}
+.shared-meals button:disabled {opacity:.55;cursor:not-allowed}
+.shared-meals button[hidden] {display:none}
+
+.tank-diagnostics {text-align:left;font-size:12px;overflow-wrap:anywhere}
+.tank-diagnostics summary {cursor:pointer;font-weight:700}
+.tank-diagnostics ul {padding-left:18px}
+.tank-diagnostics li {margin:8px 0}
+
+/* Daily means: the original lilac vessels remain unchanged. */
+.daily-pie{width:132px;height:132px;border-radius:50%;margin:1rem auto}.pie-percentages{font-size:.8rem}.shared-food-row [data-ingredient-macros]{display:block;margin-top:.4rem;line-height:1.5}
