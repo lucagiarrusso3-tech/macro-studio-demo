@@ -4,7 +4,8 @@ globalThis.FoodCatalog=(()=>{
  const data=FOOD_CATALOG_DATA,version=data.meta.sourceSHA256,key='macro-studio-excel-overrides-v1';
  const normalize=s=>String(s??'').normalize('NFC').trim().toLocaleLowerCase('it').replace(/’/g,"'");
  const source=new Map(data.foods.map(f=>[f.id,Object.freeze({...f})]));
- const names=new Map();for(const f of source.values()){const n=normalize(f.name);if(!names.has(n))names.set(n,[]);names.get(n).push(f.id);}
+ const displayNames=data.displayNames||{};
+ const names=new Map();for(const f of source.values())for(const label of new Set([normalize(f.name),normalize(displayNames[f.id]||f.name)])){if(!names.has(label))names.set(label,[]);names.get(label).push(f.id);}
  const energy=f=>['p','c','f'].every(k=>Nutrition.known(f[k]))?4*f.c+4*f.p+9*f.f:null;
  function validated(row){const food={...row,k:energy(row)};return Nutrition.validate(food);}
  function read(storage){const raw=storage.getItem(key);if(raw===null)return {};const saved=JSON.parse(raw);if(!saved||typeof saved!=='object'||Array.isArray(saved))throw Error('Personalizzazioni Excel non leggibili: conservate.');const result={};for(const [id,row] of Object.entries(saved)){if(!source.has(id))continue;result[id]=validated({...source.get(id),...row,id});}return result;}
@@ -12,7 +13,7 @@ globalThis.FoodCatalog=(()=>{
  function catalog(storage=localStorage,changes={}){
   const signature=storage.getItem(key)+'\n'+JSON.stringify(changes),cached=catalogCache.get(storage);if(cached?.signature===signature)return cached.rows;
   let saved={};try{saved=read(storage);persistenceError='';}catch(error){persistenceError=error.message;}
-  const rows=[...source.values()].map(original=>{const candidate={...original,...saved[original.id],...changes[original.id],id:original.id};const food=validated(candidate);return Object.freeze({...food,source:'Excel · '+data.meta.source+' · energia dai macro 4/4/9',category:'Excel',basis:'100g',catalogVersion:version,excelOriginal:original,energyDerived:true,traces:[],k:energy(food)});});catalogCache.set(storage,{signature,rows});return rows;
+  const rows=[...source.values()].map(original=>{const candidate={...original,...saved[original.id],...changes[original.id],id:original.id};if(candidate.name===original.name)candidate.name=displayNames[original.id]||original.name;const food=validated(candidate);return Object.freeze({...food,source:'Excel · '+data.meta.source+' · energia dai macro 4/4/9',category:'Excel',basis:'100g',catalogVersion:version,excelOriginal:original,energyDerived:true,traces:[],k:energy(food)});});catalogCache.set(storage,{signature,rows});return rows;
  }
  function writeMany(storage,entries){
   const before=entries.map(([k])=>[k,storage.getItem(k)]);try{for(const [k,v] of entries)Nutrition.write(storage,k,v);}catch(error){for(const [k,v] of before)try{if(v===null)storage.removeItem(k);else storage.setItem(k,v);}catch{}throw error;}

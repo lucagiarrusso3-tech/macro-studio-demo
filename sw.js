@@ -1,5 +1,5 @@
 'use strict';
-const CACHE = 'macro-studio-4120d998c32b57ee';
+const CACHE = 'macro-studio-b8e919c737b312bd';
 const ASSETS = ["index.html", "app-bootstrap.js", "style.css", "app.js", "nutrition.js", "nutrition-display.js", "weekly-generator.js", "weekly-manual-plan.js", "diet-project.js", "diet-project-ui.js", "generator-professional-ui.js", "generator-catalog.js", "equivalences.js", "equivalence-catalog.js", "equivalences-ui.js", "equivalenze/index.html", "equivalenze/app.js", "Macro_Studio_2_0_CREA_semplice.html", "weekly-pdf.js", "pdf-lib.min.js", "professional-pdf-model.js", "pdf-fontkit.umd.min.js", "pdf-fonts.js", "professional-pdf-ui.js", "professional-pdf-ui.css", "shared-meals.js", "shared-meals-ui.js", "shared-meals.css", "offline.js", "manifest.webmanifest", "icon-192.png", "icon-512.png", "food-catalog-data.js", "food-catalog.js"];
 const ROOT = new URL('./', self.location.href).href;
 self.addEventListener('install', event => {
