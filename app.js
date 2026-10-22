@@ -88,11 +88,11 @@ $('newfood').textContent='Modifica alimento selezionato';$('newfood').onclick=()
 $('customform').onsubmit=e=>{e.preventDefault();
  try{
   const form=new FormData(e.target),item={id:editingFood||crypto.randomUUID(),name:String(form.get('name')||'').trim(),source:String(form.get('source')||'').trim()};
-  if(!item.name)throw Error('Inserisci il nome.');if(!editingFood||!FoodCatalog.source.has(editingFood))throw Error('Seleziona un alimento del nuovo Excel da modificare.');
+  if(!item.name)throw Error('Inserisci il nome.');if(!editingFood||(!FoodCatalog.source.has(editingFood)&&!state.dietFoods?.[editingFood]))throw Error('Seleziona un alimento del nuovo Excel da modificare.');
   for(const k of ['c','f','p'])item[k]=Nutrition.number(form.get(k));item.k=FoodCatalog.energy(item);
   const valid=Nutrition.validate(item),next={...state,custom:[...state.custom],overrides:{...state.overrides}};
   if(editingFood)next.overrides[editingFood]={...state.overrides[editingFood],...valid,traces:[],sourceWarning:null,rawPer100g:undefined};else next.custom.push(valid);
-  if(storageBlocked)throw Error('Dati precedenti non leggibili: salvataggio bloccato.');FoodCatalog.edit(localStorage,editingFood,valid,[[KEY,next]]);
+  if(storageBlocked)throw Error('Dati precedenti non leggibili: salvataggio bloccato.');if(state.dietFoods?.[editingFood]){next.dietFoods={...state.dietFoods,[editingFood]:{...state.dietFoods[editingFood],...valid,k:FoodCatalog.energy(valid)}};Nutrition.write(localStorage,KEY,next);}else FoodCatalog.edit(localStorage,editingFood,valid,[[KEY,next]]);
   state=next;$('search').value='';$('category').value='';initCategories();renderFoods();$('foodselect').value=item.id;preview();render(false);$('custom').close();e.target.reset();toast('Alimento salvato nel catalogo');
  }catch(error){$('customerror').textContent=error.message;}
 };

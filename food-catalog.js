@@ -23,7 +23,7 @@ globalThis.FoodCatalog=(()=>{
  function identify(id,custom=[]){if(source.has(id))return id;const customFood=custom.find(f=>f.id===id);return match(data.legacy.identities[id]||customFood?.originalName||customFood?.offOriginal?.nome||customFood?.name||id);}
  function historical(id,name){return {id,name:name||data.legacy.identities[id]||id,k:null,p:null,c:null,f:null,source:'Piano storico: associazione al nuovo Excel da verificare',category:'Storico del piano',historicalOnly:true,sourceWarning:'Alimento storico non associato: valori esclusi dai calcoli.'};}
  function migrateMain(input){
-  const next=JSON.parse(JSON.stringify(input));if(next.catalogVersion===version)return next;
+  const next=JSON.parse(JSON.stringify(input));if(next.dietProject?.version===1&&next.dietFoods){next.catalogVersion=version;return next;}if(next.catalogVersion===version)return next;
   next.legacyFoodData=next.legacyFoodData||{catalogVersion:next.catalogVersion||'pre-excel',custom:next.custom||[],overrides:next.overrides||{}};
   const custom=next.custom||[],unresolved={};
   const resolve=id=>{const found=identify(id,custom);if(found)return found;unresolved[id]=historical(id,custom.find(f=>f.id===id)?.name);return id;};
@@ -31,8 +31,15 @@ globalThis.FoodCatalog=(()=>{
   for(const pool of Object.values(next.sharedMeals?.pools||{}))for(const alt of pool)for(const row of alt.foods)row.key=resolve(row.key);
   next.historicalFoods={...(next.historicalFoods||{}),...unresolved};next.custom=[];next.overrides={};next.catalogVersion=version;return next;
  }
- function planCatalog(state,storage=localStorage){return [...catalog(storage),...Object.values(state.historicalFoods||{}).filter(f=>!source.has(f.id)).map(f=>historical(f.id,f.name))];}
+ function planCatalog(state,storage=localStorage){
+  const base=catalog(storage);if(!state.dietFoods)return [...base,...Object.values(state.historicalFoods||{}).filter(f=>!source.has(f.id)).map(f=>historical(f.id,f.name))];
+  const cached=planCache.get(storage);if(cached&&cached.foods===state.dietFoods&&cached.base===base&&cached.history===state.historicalFoods)return cached.rows;
+  const rows=new Map([...base,...Object.values(state.historicalFoods||{}).filter(f=>!source.has(f.id)).map(f=>historical(f.id,f.name))].map(f=>[f.id,f]));
+  for(const [id,food] of Object.entries(state.dietFoods||{}))rows.set(id,Object.freeze({...Nutrition.validate(food),id}));
+  const result=[...rows.values()];planCache.set(storage,{foods:state.dietFoods,base,history:state.historicalFoods,rows:result});return result;
+ }
  function migrateStored(storage,stateKey,input){const next=migrateMain(input);if(input.catalogVersion!==version){const raw=storage.getItem(stateKey),backup='macro-studio-before-excel:'+stateKey;if(raw!==null&&storage.getItem(backup)===null)Nutrition.write(storage,backup,JSON.parse(raw));Nutrition.write(storage,stateKey,next);}return next;}
+ const planCache=new WeakMap();
  const bindingKey='macro-studio-excel-bindings-v1';
  function validBindings(saved){if(!saved||typeof saved!=='object'||Array.isArray(saved)||Object.entries(saved).some(([name,id])=>!name||!source.has(id)))throw Error('Associazioni ingredienti non valide: servono identità dell’Excel.');return {...saved};}
  function bindings(storage=localStorage){return validBindings(JSON.parse(storage.getItem(bindingKey)||'{}'));}
@@ -41,18 +48,19 @@ globalThis.FoodCatalog=(()=>{
   const byKey=new Map(),history=new Map(),entries=data.foods.map(f=>({id:f.id,key:f.id,name:f.name,historicalName:null}));
   for(const f of data.foods)byKey.set(f.name,f.id);
   for(const [alias,official] of Object.entries(aliases)){const id=match(official)||match(alias);if(id)byKey.set(alias,id);}
-  function resolveKey(name){return source.has(name)?name:bindings()[name]||byKey.get(name)||identify(name)||null;}
-  function effective(rows={}){
+  function resolveKey(name,context=null){return context?.bindings?.[name]||context?.foods?.[name]?.id||(source.has(name)?name:bindings()[name]||byKey.get(name)||identify(name)||null);}
+  function effective(rows={},context=null){
    const applicable=Object.fromEntries(Object.entries(rows).filter(([id])=>source.has(id))),flat=catalog(localStorage,applicable),db={};
    for(const f of flat)db[f.id]={...f,kcal:f.k,officialName:f.name,creaId:null};
    for(const [name,id] of byKey)db[name]={...db[bindings()[name]||id],recipeAlias:true};
    for(const [name,id] of Object.entries(bindings()))db[name]={...db[id],recipeAlias:true};
    for(const name of Object.keys(aliases))if(!db[name])db[name]={...historical(name),kcal:null,creaId:null};
    for(const [name,food] of history)if(!resolveKey(name))db[name]=food;
+   for(const [name,snapshot] of Object.entries(context?.foods||{})){const override=rows[snapshot.id]||rows[name],flat=validated({...snapshot,...override});db[name]={...snapshot,...flat,kcal:flat.k,officialName:flat.name,creaId:null};db[flat.id]=db[name];}
    return db;
   }
-  function update(rows,key,row){const id=resolveKey(key);if(!id)throw Error('Ingrediente non associato all’Excel: scegli prima un alimento esatto.');rows[id]=validated({...source.get(id),...read(localStorage)[id],...row,id});}
-  return {entries,history,resolveKey,effective,rows:db=>entries.map(e=>({...e,name:db[e.key].name,food:db[e.key]})),update,manualConflicts:()=>[],base:effective(),imported:data.foods.length,retained:0,added:data.foods.length,conflicts:[]};
+  function update(rows,key,row,context=null){const id=resolveKey(key,context);if(!id)throw Error('Ingrediente non associato all’Excel: scegli prima un alimento esatto.');rows[id]=validated({...source.get(id),...read(localStorage)[id],...context?.foods?.[key],...row,id});}
+  return {entries,history,resolveKey,effective,rows:db=>[...entries,...Object.entries(db).filter(([k,f])=>k===f.id&&!source.has(k)&&!f.historicalOnly).map(([key,f])=>({key,id:f.id,name:f.name,historicalName:null}))].map(e=>({...e,name:db[e.key].name,food:db[e.key]})),update,manualConflicts:()=>[],base:effective(),imported:data.foods.length,retained:0,added:data.foods.length,conflicts:[]};
  }
  function migrateGeneratorDraft(draft,db,adapter){
   const resolve=(name,id)=>{const found=adapter.resolveKey(name)||identify(id||name);if(found)return found;const food={...historical(name),kcal:null,creaId:null};adapter.history.set(name,food);db[name]=food;return name;};

@@ -29,12 +29,14 @@ globalThis.ProfessionalPdfUI=(()=>{
   async function run(preview){const buttons=[panel.querySelector('#professionalPdfExport'),panel.querySelector('#professionalPdfPreview'),existingDownload].filter(Boolean);buttons.forEach(b=>b.disabled=true);field('status').textContent='Generazione locale del PDF…';try{const result=await generate();if(preview){dialog.querySelector('iframe').src=result.url;dialog.querySelector('[data-view="open"]').href=result.url;dialog.querySelector('[data-view="summary"]').textContent='Piano '+result.model.planId+' · 7 giorni · '+(result.model.incomplete?'BOZZA: pasti o dati incompleti.':'Riepiloghi nutrizionali disponibili; nessuna dichiarazione automatica dei target.');dialog.showModal();field('status').textContent='Anteprima del PDF generata localmente.';}else download(result);if(document.getElementById('pdferror'))document.getElementById('pdferror').textContent='';}catch(error){field('status').textContent='PDF non generato: '+error.message;if(document.getElementById('pdferror'))document.getElementById('pdferror').textContent='PDF non generato: '+error.message;}finally{buttons.forEach(b=>b.disabled=false);}}
   panel.querySelector('#professionalPdfPreview').onclick=()=>run(true);panel.querySelector('#professionalPdfExport').onclick=()=>run(false);if(existingDownload)existingDownload.onclick=()=>run(false);
   dialog.querySelector('[data-view="close"]').onclick=()=>dialog.close();dialog.querySelector('[data-view="download"]').onclick=()=>{if(cache)download(cache);};
-  return {generate,panel,dialog,save};
+  function restore(settings){ProfessionalPdfModel.options(settings);draft=JSON.parse(JSON.stringify(settings));for(const name of ['studio','contacts','client','professional','planId','date','notes','substitutions'])field(name).value=draft[name]??'';field('substitutionsAuthorized').checked=draft.substitutionsAuthorized===true;if(cache){URL.revokeObjectURL(cache.url);cache=null;}if(dialog.open)dialog.close();}
+  return {generate,panel,dialog,save,read,restore,key};
  }
  function start(){
   if(document.getElementById('clientexport')||document.querySelector('.clientexport')){
    const previous=document.querySelector('.clientexport');
    const ui=mount({host:previous,key:'macro-studio-pdf-settings-v1:main',mealNames:['Colazione','Spuntino','Pranzo','Merenda','Cena'],snapshot:settings=>ProfessionalPdfModel.fromMain(JSON.parse(JSON.stringify(state)),catalog(),settings),initial:{client:state.client,professional:state.professional,notes:state.notes}});
+   globalThis.ProfessionalPdfApp=ui;
    // Keep the original plan fields and their save handlers, with one visible PDF panel.
    for(const name of ['client','professional']){
     const original=document.getElementById(name),field=ui.panel.querySelector('[data-pdf="'+name+'"]');
@@ -49,7 +51,7 @@ globalThis.ProfessionalPdfUI=(()=>{
    for(const id of ['pdfstatus','pdferror'])ui.panel.appendChild(document.getElementById(id));
    previous.replaceWith(ui.panel);
   }else if(document.getElementById('stage-plans')){
-   mount({host:document.getElementById('stage-plans'),key:'macro-studio-pdf-settings-v1:generator',mealNames:MEALS,snapshot:settings=>ProfessionalPdfModel.fromGenerator({meals:MEALS,totals:d=>{const input=dayInputs(d),t=WeeklyGenerator.totals(input.templates,input.grams,input.db).day;return {k:t.kcal,p:t.p,c:t.c,f:t.f};},foods:(d,m)=>{const slot=plan[d][m],template=current(d,m);return [...(template?.ingredients||[]).map((key,i)=>({name:db[key]?.officialName||db[key]?.name||key,grams:slot.grams?.[i]??null})),...WeeklyManualPlan.entries(slot).map(entry=>({name:db[entry.key]?.officialName||db[entry.key]?.name||entry.key,grams:entry.g}))];}},settings)});
+   globalThis.ProfessionalPdfApp=mount({host:document.getElementById('stage-plans'),key:'macro-studio-pdf-settings-v1:generator',mealNames:MEALS,snapshot:settings=>ProfessionalPdfModel.fromGenerator({meals:MEALS,totals:d=>{const input=dayInputs(d),t=WeeklyGenerator.totals(input.templates,input.grams,input.db).day;return {k:t.kcal,p:t.p,c:t.c,f:t.f};},foods:(d,m)=>{const slot=plan[d][m],template=current(d,m);return [...(template?.ingredients||[]).map((key,i)=>({name:db[key]?.officialName||db[key]?.name||key,grams:slot.grams?.[i]??null})),...WeeklyManualPlan.entries(slot).map(entry=>({name:db[entry.key]?.officialName||db[entry.key]?.name||entry.key,grams:entry.g}))];}},settings)});
   }
  }
  return {mount,start};
